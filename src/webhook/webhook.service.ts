@@ -3,10 +3,10 @@ import { DiscoveryService, MetadataScanner } from "@nestjs/core"
 
 import { MERCADOPAGO_WEBHOOK_HANDLER } from "../mercadopago.constants"
 import type { MercadoPagoWebhookHandlerMetadata } from "../mercadopago.decorators"
-import type { MercadoPagoWebhookEvent } from "../mercadopago.interfaces"
+import type { MercadoPagoWebhookContext, MercadoPagoWebhookEvent } from "../mercadopago.interfaces"
 
 interface RegisteredHandler extends MercadoPagoWebhookHandlerMetadata {
-    call: (event: MercadoPagoWebhookEvent) => unknown
+    call: (event: MercadoPagoWebhookEvent, context: MercadoPagoWebhookContext) => unknown
 }
 
 @Injectable()
@@ -47,14 +47,17 @@ export class MercadoPagoWebhookService implements OnModuleInit {
         this.handlers = handlers
     }
 
-    async dispatch(event: MercadoPagoWebhookEvent): Promise<number> {
+    async dispatch(
+        event: MercadoPagoWebhookEvent,
+        context: MercadoPagoWebhookContext = { query: {} },
+    ): Promise<number> {
         const matching = this.handlers.filter(
             (handler) =>
                 (handler.type === "*" || handler.type === event.type) &&
                 (!handler.action || handler.action === event.action),
         )
 
-        await Promise.all(matching.map((handler) => handler.call(event)))
+        await Promise.all(matching.map((handler) => handler.call(event, context)))
         return matching.length
     }
 }

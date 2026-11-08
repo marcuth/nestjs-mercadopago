@@ -55,13 +55,13 @@ The module is global, so the client and options are available everywhere.
 
 ### Options
 
-| Option                           | Description                                                                                      | Default |
-| -------------------------------- | ------------------------------------------------------------------------------------------------ | ------- |
-| `config`                         | Passed to `new MercadoPagoConfig(...)` (`accessToken`, `options`).                               | —       |
-| `webhookSecret`                  | Secret from _Your integrations > Webhooks_ used to validate `x-signature`.                       | —       |
-| `skipWebhookSignatureValidation` | Disables signature validation. **Never use in production.**                                      | `false` |
-| `webhookToleranceSeconds`        | Rejects notifications whose signed timestamp differs from now by more than this many seconds.    | off     |
-| `registerWebhookController`      | Registers the `POST /mercadopago/webhook` route. Set to `false` to provide your own controller.  | `true`  |
+| Option                           | Description                                                                                     | Default |
+| -------------------------------- | ----------------------------------------------------------------------------------------------- | ------- |
+| `config`                         | Passed to `new MercadoPagoConfig(...)` (`accessToken`, `options`).                              | —       |
+| `webhookSecret`                  | Secret from _Your integrations > Webhooks_ used to validate `x-signature`.                      | —       |
+| `skipWebhookSignatureValidation` | Disables signature validation. **Never use in production.**                                     | `false` |
+| `webhookToleranceSeconds`        | Rejects notifications whose signed timestamp differs from now by more than this many seconds.   | off     |
+| `registerWebhookController`      | Registers the `POST /mercadopago/webhook` route. Set to `false` to provide your own controller. | `true`  |
 
 ## Using the client
 
@@ -111,9 +111,20 @@ export class PaymentsWebhook {
 }
 ```
 
+Handlers receive the request context as a second argument, with the query string of your `notification_url`
+(handy for custom params like `?source=invoice`):
+
+```ts
+@MercadoPagoWebhookHandler("payment")
+async onPayment(event: MercadoPagoWebhookEvent, { query }: MercadoPagoWebhookContext) {
+    if (query.source === "invoice") {}
+}
+```
+
 Behavior:
 
-- Invalid or missing signatures get `401`; malformed payloads get `400`.
+- Legacy notifications without a body (`?topic=payment&id=123`) are normalized to `{ type, data: { id } }`.
+- Invalid or missing signatures get `401`; payloads without a type or id (in the body or the query) get `400`.
 - Valid notifications get `200` with `{ "received": true, "handled": <number of handlers> }`.
 - If a handler throws, the route answers `500` so Mercado Pago retries the notification. Make handlers idempotent.
 - The notification only carries the resource id: fetch the full resource with the client (e.g. `payment.get`).

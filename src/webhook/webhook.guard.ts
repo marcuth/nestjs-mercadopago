@@ -22,7 +22,7 @@ export class MercadoPagoWebhookSignatureGuard implements CanActivate {
             const value = request.headers?.[name]
             return Array.isArray(value) ? value[0] : value
         }
-        const rawDataId = request.query?.["data.id"] ?? request.query?.data?.id
+        const rawDataId = request.query?.["data.id"] ?? request.query?.data?.id ?? request.query?.id
         const dataId = Array.isArray(rawDataId) ? rawDataId[0] : rawDataId
 
         const valid = validateWebhookSignature({

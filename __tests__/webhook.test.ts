@@ -7,7 +7,13 @@ import { Test } from "@nestjs/testing"
 import request from "supertest"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { MercadoPagoModule, MercadoPagoWebhookEvent, MercadoPagoWebhookHandler, validateWebhookSignature } from "../src"
+import {
+    MercadoPagoModule,
+    MercadoPagoWebhookContext,
+    MercadoPagoWebhookEvent,
+    MercadoPagoWebhookHandler,
+    validateWebhookSignature,
+} from "../src"
 
 const secret = "test-secret"
 
@@ -55,8 +61,8 @@ describe("POST /mercadopago/webhook", () => {
     @Injectable()
     class Handlers {
         @MercadoPagoWebhookHandler("payment", "payment.created")
-        payment(event: MercadoPagoWebhookEvent) {
-            onPayment(event)
+        payment(event: MercadoPagoWebhookEvent, context: MercadoPagoWebhookContext) {
+            onPayment(event, context)
         }
 
         @MercadoPagoWebhookHandler("*")
@@ -89,8 +95,48 @@ describe("POST /mercadopago/webhook", () => {
             .expect(200)
 
         expect(res.body).toEqual({ received: true, handled: 2 })
-        expect(onPayment).toHaveBeenCalledWith(body)
+        expect(onPayment).toHaveBeenCalledWith(body, { query: { "data.id": "123" } })
         expect(onAny).toHaveBeenCalledOnce()
+    })
+
+    it("passes custom query params to the handlers", async () => {
+        await request(app.getHttpServer())
+            .post("/mercadopago/webhook?data.id=123&source=invoice")
+            .set("x-request-id", "req-1")
+            .set("x-signature", sign("123", "req-1"))
+            .send(body)
+            .expect(200)
+
+        expect(onPayment.mock.calls[0][1].query.source).toBe("invoice")
+    })
+
+    it("normalizes legacy notifications sent only in the query string", async () => {
+        await request(app.getHttpServer())
+            .post("/mercadopago/webhook?topic=payment&id=123")
+            .set("x-request-id", "req-1")
+            .set("x-signature", sign("123", "req-1"))
+            .expect(200)
+
+        expect(onAny).toHaveBeenCalledWith({ type: "payment", data: { id: "123" } })
+    })
+
+    it("uses the first value of repeated query params", async () => {
+        await request(app.getHttpServer())
+            .post("/mercadopago/webhook?topic=payment&topic=other&id=123")
+            .set("x-request-id", "req-1")
+            .set("x-signature", sign("123", "req-1"))
+            .expect(200)
+
+        expect(onAny).toHaveBeenCalledWith({ type: "payment", data: { id: "123" } })
+    })
+
+    it("rejects notifications without type or id with 400", async () => {
+        await request(app.getHttpServer())
+            .post("/mercadopago/webhook?data.id=123")
+            .set("x-request-id", "req-1")
+            .set("x-signature", sign("123", "req-1"))
+            .send({ data: { id: "123" } })
+            .expect(400)
     })
 
     it("does not call action-specific handlers for other actions", async () => {

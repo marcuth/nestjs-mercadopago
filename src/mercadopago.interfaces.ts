@@ -40,6 +40,11 @@ export interface MercadoPagoModuleAsyncOptions extends Pick<ModuleMetadata, "imp
     registerWebhookController?: boolean
 }
 
+/** Request data passed to handlers next to the notification (e.g. custom params of your `notification_url`). */
+export interface MercadoPagoWebhookContext {
+    query: Record<string, unknown>
+}
+
 export interface MercadoPagoWebhookEvent {
     id?: number | string
     live_mode?: boolean

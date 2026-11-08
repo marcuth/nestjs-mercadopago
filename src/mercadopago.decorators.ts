@@ -14,7 +14,9 @@ export interface MercadoPagoWebhookHandlerMetadata {
 
 /**
  * Marks a provider method as a handler for webhook notifications.
- * The method receives the notification body as its first argument.
+ * The method receives the notification as its first argument and the request context
+ * (`{ query }`, with params like `?source=invoice` from your `notification_url`) as the second.
+ * Legacy notifications (`?topic=payment&id=123`) are normalized to `{ type, data: { id } }`.
  *
  * @example
  * ```ts
