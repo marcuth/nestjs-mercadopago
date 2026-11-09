@@ -1,6 +1,6 @@
 {
   "name": "nestjs-mercadopago",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A NestJS module for integrating with Mercado Pago, with injectable clients, webhook handling and signature validation.",
   "type": "commonjs",
   "repository": {
